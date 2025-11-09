@@ -1,0 +1,13 @@
+.vscode/
+
+build/
+install/
+log/
+
+src/unitree_legged_sdk/lib/cpp
+src/unitree_legged_sdk/lib/python
+src/unitree_legged_sdk/python_wrapper
+src/unitree_legged_sdk/example
+src/unitree_legged_sdk/example_py
+src/unitree_legged_sdk/include
+src/unitree_legged_sdk/lib
