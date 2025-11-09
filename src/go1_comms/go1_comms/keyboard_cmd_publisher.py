@@ -1,50 +1,69 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String # Or a custom message type for more complex commands
-from pynput import keyboard # Or another library like curses or prompt_toolkit
+from std_msgs.msg import String
+import sys
+import select
+import termios
+import tty
 
 class KeyboardPublisher(Node):
     def __init__(self):
         super().__init__('keyboard_cmd_publisher')
         self.publisher_ = self.create_publisher(String, 'keyboard_cmd', 10)
-        self.get_logger().info('Keyboard Publisher node started.')
-
-        # Initialize keyboard listener
-        self.listener = keyboard.Listener(
-            on_press=self.on_press,
-            on_release=self.on_release)
-        self.listener.start()
-
-    def on_press(self, key):
-        try:
-            command = f'Key pressed: {key.char}'
-            
-        except AttributeError:
-            command = f'Special key pressed: {key}'
+        self.settings = termios.tcgetattr(sys.stdin)
+        self.get_logger().info('Keyboard Publisher node started. Press keys to publish.')
+        self.print_instructions()
         
-        msg = String()
-        msg.data = command
-        self.publisher_.publish(msg)
-        self.get_logger().info(f'Current Command: "{msg.data}"')
-        self.get_logger().info("-----------------------------------------------------------------------------------------------------")
-        self.get_logger().info("[W] Fwd | [S] Stop | [X] Back | [G] Damping | [Q] Quit | [K] Rotate | [H] Stand Up | [Y] Listen2Twist")
+        self.timer = self.create_timer(0.1, self.read_key_callback)
 
-    def on_release(self, key):
-        if key == keyboard.Key.esc:
-            # Stop listener
-            return False
+    def print_instructions(self):
+        print("--------------------------------------------------")
+        print("[W] Fwd | [S] Stop | [X] Back")
+        print("[G] Damping | [K] Rotate | [H] Stand Up")
+        print("[Y] Listen2Twist | [Q] Quit")
+        print("--------------------------------------------------")
+        print("Press Ctrl+C to exit cleanly.")
+
+    def get_key(self):
+        # Switch terminal to raw mode to read single characters without pressing Enter
+        tty.setraw(sys.stdin.fileno())
+        # Non-blocking check if data is available on stdin
+        rlist, _, _ = select.select([sys.stdin], [], [], 0.1)
+        if rlist:
+            key = sys.stdin.read(1)
+        else:
+            key = ''
+        # Restore standard terminal settings immediately
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, self.settings)
+        return key
+
+    def read_key_callback(self):
+        key = self.get_key()
+        if key:
+            # Handle Ctrl+C (ASCII 3) explicitly if needed, though KeyboardInterrupt usually catches it.
+            if key == '\x03' or key.lower() == 'q': 
+                raise KeyboardInterrupt
+            
+            msg = String()
+            msg.data = key
+            self.publisher_.publish(msg)
+            # Use print instead of get_logger so it doesn't clutter the raw terminal view too much
+            print(f'\rPublished: {key}   ', end='') 
 
 def main(args=None):
     rclpy.init(args=args)
     node = KeyboardPublisher()
+    
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, Exception):
         pass
     finally:
-        node.listener.stop() # Ensure the keyboard listener is stopped
+        # Restore terminal settings on exit, or the terminal will be messed up
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, node.settings)
         node.destroy_node()
         rclpy.shutdown()
+        print("\nNode stopped and terminal settings restored.")
 
 if __name__ == '__main__':
     main()
