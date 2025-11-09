@@ -1,0 +1,3 @@
+{
+    "cmake-args": ["-DPYTHON_BUILD=TRUE"]
+}
