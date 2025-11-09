@@ -13,13 +13,13 @@ class PublishGo1Twist(Node):
 
         msg = Twist()
 
-        msg.linear.x = 0.0
+        msg.linear.x = 0.0    # Forward Velocity
         msg.linear.y = 0.0
         msg.linear.z = 0.0
         
         msg.angular.x = 0.0
         msg.angular.y = 0.0
-        msg.angular.z = 0.0
+        msg.angular.z = 0.0    # Yaw
 
         self.twistPub.publish(msg)
         self.get_logger().info(f'Published Twist: {[msg.linear.x, msg.linear.y, msg.linear.z, msg.angular.x, msg.angular.y, msg.angular.z]}')
