@@ -18,7 +18,7 @@ class PublishGo1Twist(Node):
             self.imu_callback,
             10)
  
-        self.timer = self.create_timer(0.1, self.twistPubCallback)
+        self.timer = self.create_timer(0.1, self.control_logic)
 
         self.imu_data = None
         self.roll = 0.0
@@ -36,7 +36,7 @@ class PublishGo1Twist(Node):
         self.start_yaw = 0.0
         self.target_yaw = 0.0
         self.yaw = 0.0
-        self._logger().info('FSM controller init.')
+        self.get_logger().info('FSM controller init.')
 
     def imu_callback(self, msg):
 
@@ -69,7 +69,7 @@ class PublishGo1Twist(Node):
         """ initial alignment to 0 rad yaw """
         
         twist = Twist()
-        if abs(self.yaw > self.yaw_tolerance):
+        if abs(self.yaw) > self.yaw_tolerance:
             twist.angular.z = -self.turn_speed if self.yaw > 0 else self.turn_speed
         else:
             self.start_time = self.get_clock().now()
@@ -134,22 +134,12 @@ class PublishGo1Twist(Node):
             self.handle_forward()
         elif self.state == 'TURN':
             self.handle_turn()
-        elif self.state == 'DONE':
-            self.handle_done()
+        elif self.state == 'STOP':
+            self.handle_stop()
         else:
             self.get_logger().warn(f'Unknown state: {self.state}')
-            self.state = 'DONE'
+            self.state = 'STOP'
 
-
-    def twistPubCallback(self):
-
-        msg = Twist()
-
-        msg.linear.x = 0.0
-        msg.angular.z = 0.0
-
-        self.twistPub.publish(msg)
-        self.get_logger().info(f'Published Twist: {[msg.linear.x, msg.linear.y, msg.linear.z, msg.angular.x, msg.angular.y, msg.angular.z]}')
     
 def main(args=None):
     rclpy.init(args=args)
