@@ -2,6 +2,7 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
+from std_msgs.msg import String
 
 # Other Imports
 import sys
@@ -20,8 +21,12 @@ class CommandExecutor(Node):
 
     def __init__(self):
         super().__init__("execute_twist")
-        self.twistSub = self.create_subscription(Twist, 'go1_twist', self.moveRobot, 10)
-        self.get_logger().info('Executing twist !')
+        
+        self.kcmdSub = self.create_subscription(String, 'keyboard_cmd', self.registerCommand, 10 )
+        self.twistSub = self.create_subscription(Twist, 'go1_twist', self.try2moveRobot, 10)
+        
+        self.currentKey = 'H'
+        self.isStanding = False
 
         # TRY CONNECTING TO ROBOT
         try:
@@ -30,13 +35,78 @@ class CommandExecutor(Node):
             self.state = sdk.HighState()
             self.udp.InitCmdData(self.cmd2go)
             self.get_logger().info(f"Connected to GO1 : {self.udp}")
-        
+
         except Exception as e:
             self.get_logger().info(f"Couldn't connect to robot : {e}")
+                
+    def registerCommand(self, msg):
         
+        self.currentKey = msg.data
+        self.get_logger().info(f"Command Registered : {self.currentKey}")
+
+
+    def try2moveRobot(self, msg):
         
-    def moveRobot(self):
-        
+        if self.isStanding:
+            x_vel = 0
+            yaw_vel = 0
+            self.cmd2go.mode = 2
+
+            if self.currentKey == 'Y' or self.currentKey == 'y':
+                x_vel = msg.linear.x
+                yaw_vel = msg.angular.z
+
+                # Set robot to walking mode
+                self.cmd2go.mode = 2   # 2 corresponds to walking mode
+
+            if self.currentKey == 'w' or self.currentKey == 'W':
+                self.cmd2go.mode = 2 # Walk mode
+                x_vel = 0.4
+
+            elif self.currentKey == 's' or self.currentKey == 'S':
+                self.cmd2go.mode = 2 # Stay in Walk mode, but stop moving
+                x_vel = 0.0
+                yaw_vel = 0.0
+
+            elif self.currentKey == 'x' or self.currentKey == 'X':
+                self.cmd2go.mode = 2 # Walk mode
+                x_vel = -0.4
+
+            elif self.currentKey == 'g' or self.currentKey == 'G':
+                self.cmd2go.mode = 7 # Damping mode
+                x_vel = 0.0
+
+            elif self.currentKey == 'h' or self.currentKey == 'H':
+                self.cmd2go.mode = 6  # Stand Up 
+
+            elif self.currentKey == 'k' or self.currentKey == 'K': 
+                self.cmd2go.mode = 2    # Turning Mode
+                x_vel = 0.0
+                yaw_vel = 0.3
+            
+            else:
+                self.makeRobotStand()
+            
+            self.cmd2go.gaitType = 1
+            self.cmd2go.velocity = [x_vel, 0]
+            self.cmd2go.yawSpeed = yaw_vel
+            self.udp.SetSend(self.cmd2go)
+            self.udp.Send()
+            
+        else:
+            self.makeRobotStand()
+    
+    def makeRobotStand(self):
+
+        self.cmd2go.mode = 6
+        self.cmd2go.velocity = [0, 0]
+        self.cmd2go.yawSpeed = 0
+
+        self.udp.SetSend(self.cmd2go)
+        self.udp.Send()
+
+        self.isStanding = True
+            
 
 def main(args=None):
     rclpy.init(args=args)
