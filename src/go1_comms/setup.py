@@ -22,7 +22,7 @@ setup(
         'console_scripts': [
             'go1_twist_publisher = go1_comms.go1_twist_publisher:main',
             'execute_twist = go1_comms.execute_twist:main',
-            'keyboard_cmd_publisher = go1_comms.keyboard_cmd_publihser:main'
+            'keyboard_cmd_publisher = go1_comms.keyboard_cmd_publisher:main'
         ],
     },
 )
