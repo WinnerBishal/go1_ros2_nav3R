@@ -11,3 +11,6 @@ src/unitree_legged_sdk/example
 src/unitree_legged_sdk/example_py
 src/unitree_legged_sdk/include
 src/unitree_legged_sdk/lib
+
+*.csv
+*.pyc
