@@ -19,7 +19,7 @@ class KeyboardPublisher(Node):
     def print_instructions(self):
         print("--------------------------------------------------")
         print("[W] Fwd | [S] Stop | [X] Back")
-        print("[G] Damping | [K] Rotate | [H] Stand Up")
+        print("[G] Damping | [K] Rotate +| [L] Rotate -| [H] Stand Up")
         print("[Y] Listen2Twist | [Q] Quit")
         print("--------------------------------------------------")
         print("Press Ctrl+C to exit cleanly.")
