@@ -55,15 +55,24 @@ class CommandExecutor(Node):
         
         self.currentKey = 'S'
         self.isStanding = False
+        self.op_mode = 'teleop'
 
         self.runFromCommandTimer = self.create_timer(0.1, self.moveRobotFromCmd)
 
-
     def registerCommand(self, msg):        
         self.currentKey = msg.data
+        self.op_mode = 'teleop'
         self.get_logger().info(f"Command Registered : {self.currentKey}")
 
+        self.moveRobotFromCmd()
+        
+
     def moveRobotFromCmd(self):
+
+        fwd_speed = 0.25
+        
+        if self.op_mode != 'teleop':
+            return
 
         self.udp.Recv()
         self.udp.GetRecv(self.gostate)
@@ -75,7 +84,7 @@ class CommandExecutor(Node):
 
             if self.currentKey == 'w' or self.currentKey == 'W':
                 self.cmd2go.mode = 2 # Walk mode
-                x_vel = 0.4
+                x_vel = fwd_speed
 
             elif self.currentKey == 's' or self.currentKey == 'S':
                 self.cmd2go.mode = 2 # Stay in Walk mode, but stop moving
@@ -84,7 +93,7 @@ class CommandExecutor(Node):
 
             elif self.currentKey == 'x' or self.currentKey == 'X':
                 self.cmd2go.mode = 2 # Walk mode
-                x_vel = -0.4
+                x_vel = -fwd_speed
 
             elif self.currentKey == 'g' or self.currentKey == 'G':
                 self.cmd2go.mode = 7 # Damping mode
@@ -112,11 +121,14 @@ class CommandExecutor(Node):
             self.udp.SetSend(self.cmd2go)
             self.udp.Send()
             self.get_logger().info(f"Moving robot with x_vel : {x_vel}, yaw_vel: {yaw_vel}")
+        
         else:
             self.makeRobotStand()
 
 
     def try2moveRobot(self, msg):
+
+        self.op_mode = 'from_twist'
 
         self.udp.Recv()
         self.udp.GetRecv(self.gostate)
