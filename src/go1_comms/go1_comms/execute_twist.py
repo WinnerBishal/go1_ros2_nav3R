@@ -16,8 +16,10 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
+from go1_interfaces.msg import GoState
 from sensor_msgs.msg import Imu
 from std_msgs.msg import String
+import datetime, csv
 
 # Other Imports
 import sys
@@ -47,8 +49,8 @@ class CommandExecutor(Node):
         except Exception as e:
             self.get_logger().info(f"Couldn't connect to robot : {e}")
         
-        self.imuPub = self.create_publisher(Imu, 'go1_imu', 10)
-        self.imuTimer = self.create_timer(0.1, self.imuPublisher)
+        self.statePub = self.create_publisher(GoState, 'GoState', 10)
+        self.stateTimer = self.create_timer(0.1, self.statePublisher)
 
         self.twistSub = self.create_subscription(Twist, 'go1_twist', self.try2moveRobot, 10)
         self.kcmdSub = self.create_subscription(String, 'keyboard_cmd', self.registerCommand, 10)
@@ -58,6 +60,12 @@ class CommandExecutor(Node):
         self.op_mode = 'teleop'
 
         self.runFromCommandTimer = self.create_timer(0.1, self.moveRobotFromCmd)
+
+        # timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        # self.log_filename = f"imu_log_{timestamp_str}.csv"
+        # self.log_file = open(self.log_filename, 'w', newline='')
+        # self.csv_writer = csv.writer(self.log_file)
+        # self.csv_writer.writerow(['timestamp', 'acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z', 'r', 'p', 'y'])
 
     def registerCommand(self, msg):        
         self.currentKey = msg.data
@@ -159,32 +167,49 @@ class CommandExecutor(Node):
 
         self.isStanding = True
     
-    def imuPublisher(self):
+    def statePublisher(self):
 
         self.udp.Recv()
         self.udp.GetRecv(self.gostate)
 
-        msg = Imu()
+        msg = GoState()
         
         acc = self.gostate.imu.accelerometer
         gyro = self.gostate.imu.gyroscope
         rpy = self.gostate.imu.rpy
 
-        msg.linear_acceleration.x = acc[0]
-        msg.linear_acceleration.y = acc[1]
-        msg.linear_acceleration.z = acc[2]
+        go_x = self.gostate.position[0]
+        go_y = self.gostate.position[1]
+        # go_z = self.gostate.position[2]
 
-        msg.angular_velocity.x = gyro[0]
-        msg.angular_velocity.x = gyro[1]
-        msg.angular_velocity.x = gyro[2]
+        msg.go1_imu.linear_acceleration.x = acc[0]
+        msg.go1_imu.linear_acceleration.y = acc[1]
+        msg.go1_imu.linear_acceleration.z = acc[2]
+
+        msg.go1_imu.angular_velocity.x = gyro[0]
+        msg.go1_imu.angular_velocity.x = gyro[1]
+        msg.go1_imu.angular_velocity.x = gyro[2]
 
         # Using quaternion msg definition to send rpy(roll, pitch, yaw)
-        msg.orientation.x = rpy[0]
-        msg.orientation.y = rpy[1]
-        msg.orientation.z = rpy[2]
-        msg.orientation.w = 1.0          # Not useful
+        msg.go1_imu.orientation.x = rpy[0]
+        msg.go1_imu.orientation.y = rpy[1]
+        msg.go1_imu.orientation.z = rpy[2]
+        msg.go1_imu.orientation.w = 1.0          # Not useful
 
-        self.imuPub.publish(msg)
+        msg.go1_pose2d.x = go_x
+        msg.go1_pose2d.y = go_y
+        msg.go1_pose2d.theta = rpy[2]
+        
+        
+        # current_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        # self.csv_writer.writerow([current_time, acc[0], acc[1], acc[2],
+        #                           gyro[0], gyro[1], gyro[2],
+        #                           rpy[0], rpy[1], rpy[2]])
+        
+
+        self.statePub.publish(msg)
+
+
 
 def main(args=None):
     rclpy.init(args=args)
