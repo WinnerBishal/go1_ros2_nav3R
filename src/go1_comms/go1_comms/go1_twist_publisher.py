@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Imu, Image
+from go1_interfaces.msg import GoState
 import math
 import datetime
 import time
@@ -18,8 +19,8 @@ class PublishGo1Twist(Node):
         self.twistPub = self.create_publisher(Twist, 'go1_twist', 10)
         
         # --- Subscribers ---
-        self.IMU_subscriber = self.create_subscription(
-            Imu, 'go1_imu', self.imu_callback, 10)
+        self.state_subscriber = self.create_subscription(
+            GoState, 'GoState', self.go1_state_callback, 10)
             
         # Camera Subscribers
         self.bridge = CvBridge()
@@ -75,17 +76,26 @@ class PublishGo1Twist(Node):
         self.log_filename = f"imu_log_{timestamp_str}.csv"
         self.log_file = open(self.log_filename, 'w', newline='')
         self.csv_writer = csv.writer(self.log_file)
-        self.csv_writer.writerow(['timestamp', 'yaw', 'target_yaw', 'state'])
+        self.csv_writer.writerow(['timestamp', 'ax', 'ay', 'az',
+                                   'gx', 'gy', 'gz',
+                                   'x', 'y',
+                                   'yaw', 'target_yaw', 'state'])
         
         self.timer = self.create_timer(0.1, self.control_logic) 
 
     # --- Callbacks ---
-    def imu_callback(self, msg):
-        self.imu_data = msg
-        self.yaw = msg.orientation.z % (2 * math.pi)
+    def go1_state_callback(self, msg):
+        self.imu_data = msg.go1_imu
+        self.yaw = msg.go1_pose2d.theta % (2 * math.pi)
+
+        imu = msg.go1_imu
+        pose2d = msg.go1_pose2d
         
         current_time = time.time()
-        self.csv_writer.writerow([current_time, self.yaw, self.target_yaw, self.state])
+        self.csv_writer.writerow([current_time, imu.linear_acceleration.x, imu.linear_acceleration.y, imu.linear_acceleration.z,
+                                  imu.angular_velocity.x, imu.angular_velocity.y, imu.angular_velocity.z,
+                                  pose2d.x, pose2d.y,
+                                  pose2d.theta, self.target_yaw, self.state])
         
         if self.state == "INIT_ALIGN":
             self.fixed_heading_for_leg = self.yaw 
